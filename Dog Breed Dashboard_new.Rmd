@@ -3,7 +3,7 @@ title: "🐶 Dog Breeds Dashboard 🐶"
 author: "Jeffrey Gonzales, Morgan Hertel, Amy Gill"
 output:
   flexdashboard::flex_dashboard:
-    orientation: rows
+    orientation: column
     vertical_layout: fill
     theme:
       version: 4
@@ -69,26 +69,53 @@ trait_desc_clean <- trait_description %>%
 
 ```
 
-# **🏆 OVERVIEW 🏆**
+🏆 OVERVIEW 🏆
+=====================================
 
-## Column
+Column {data-width=45}
+-----------------------------------------------------------------------
+### 
+```{r echo=FALSE}
+tags$div(
+  style = "
+    display: flex;
+    align-items: stretch;     /* let the image stretch vertically */
+    justify-content: stretch; /* let the image stretch horizontally */
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  ",
+  tags$img(
+    src = "https://i7.glitter-graphics.org/pub/540/540957x9slahm5jk.gif",
+    style = "
+      width: 100%;
+      height: 100%;
+      object-fit: cover;  /* fill pane, crop if needed */
+      border-radius: 0;
+      box-shadow: none;
+      display: block;
+    "
+  )
+)
+```
 
-### **🐾 ABOUT THIS DASHBOARD 🐾**
+### 🐾 ABOUT THIS DASHBOARD 🐾
 
 This flexdashboard explores American Kennel Club (AKC) data on dog breeds:
 
--   **Breed popularity over time (2013–2020)** based on yearly AKC rank.
--   **Behavior and care traits** such as affection, energy level, shedding, trainability, etc.
--   **Trait definitions** to help interpret the 1–5 scores (1 = low, 5 = high).
+- **Breed popularity over time (2013–2020)** based on yearly AKC rank.  
+- **Behavior and care traits** such as affection, energy level, shedding, trainability, etc.  
+- **Trait definitions** to help interpret the 1–5 scores (1 = low, 5 = high).
 
 Use the tabs and interactive plots to:
 
--   Compare how popular a breed has been over recent years.
--   Explore the profile of each breed across different traits.
--   Look up what each trait score actually means.
+- Compare how popular a breed has been over recent years.  
+- Explore the profile of each breed across different traits.  
+- Look up what each trait score actually means.
 
-## Column
-
+Column {data-width=55}
+-----------------------------------------------------------------------
 ```{r}
 
 # Make a small data frame for the preview
@@ -103,80 +130,31 @@ datatable(
   df_preview,
   options = list(
     pageLength = 10,
-    lengthMenu = c(10, 25, 50, 100, 150, 200)
+    lengthMenu = c(10, 25, 50, 100, nrow(df_preview)),
+    scrollY = "60vh",                        # taller scrolling region for rows
+    scrollCollapse = TRUE,                   # collapse if fewer rows
+    dom = "lfrtip"                           # keep length, filter, table, info, paging
   ),
   caption = "Sample of dog breeds with popularity rank (lower = more popular)."
-) 
-
-```
-
-# **📊 POPULARITY 📊**
-
-Row {data-height=20}
------------------------------------------------------------------------
-
-### **🏆 POPULARITY OVER TIME 🏆**
-
-```{r}
-inputPanel(
-  selectInput(
-    inputId  = "breed_select",
-    label    = "Select breed(s):",
-    choices  = sort(unique(rank_long$Breed)),
-    selected = c("Retrievers (Labrador)", "French Bulldogs"),
-    multiple = TRUE
+) %>%
+  DT::formatStyle(
+    columns = names(df_preview),
+    backgroundColor = "#FFF7E6",   # warm cream (like light fur)
+    color           = "#4A2C2A"    # deep brown text
+  ) %>%
+  DT::formatStyle(
+    "Breed",
+    fontWeight = "bold"            # make breed names stand out
   )
-)
 
 ```
 
-### **🐶 SELECTED BREED IMAGES 🐶**
-
-```{r}
-
-renderUI({
-  req(input$breed_select)
-
-  # get the breeds currently selected
-  selected_breeds <- input$breed_select
-
-  # look up their images from breed_images
-  imgs <- breed_images %>%
-    dplyr::filter(Breed %in% selected_breeds)
-
-  # if no images found
-  if (nrow(imgs) == 0) {
-    return(tags$p("No images available yet for these breeds."))
-  }
-
-  # create a small image gallery
-  tagList(
-    lapply(seq_len(nrow(imgs)), function(i) {
-      tags$div(
-        style = "display: inline-block;
-                 margin: 8px;
-                 text-align: center;",
-        tags$img(
-          src   = imgs$ColorImageURL[i],
-          style = "max-width: 160px;
-                   height: auto;
-                   border-radius: 10px;
-                   box-shadow: 0 0 10px rgba(0,0,0,0.2);"
-        ),
-        tags$div(
-          imgs$Breed[i],
-          style = "margin-top: 4px; font-size: 0.8em; font-weight: 600;"
-        )
-      )
-    })
-  )
-})
-```
-
+**📊 POPULARITY 📊**
+=====================================
 
 Row {data-height=80}
 -----------------------------------------------------------------------
-### **POPULARITY RANK TRENDS**
+### **POPULARITY RANK TRENDS** {data-width=55}
 
 ```{r}
 
@@ -222,10 +200,87 @@ renderPlotly({
 
 ```
 
+Row {data-height=20}
+-----------------------------------------------------------------------
 
-# **🐩 BREED TRAITS 🐕**
+### **🏆 POPULARITY OVER TIME 🏆** {data-width=45}
 
-Column {.sidebar}
+```{r}
+inputPanel(
+  selectInput(
+    inputId  = "breed_select",
+    label    = "Select breed(s):",
+    choices  = sort(unique(rank_long$Breed)),
+    selected = c("Retrievers (Labrador)", "French Bulldogs"),
+    multiple = TRUE
+  ),
+  actionButton(
+    inputId = "reset_breeds",
+    label   = "Reset selection"
+  )
+)
+
+```
+
+```{r echo=FALSE}
+observeEvent(input$reset_breeds, {
+  updateSelectInput(
+    session,
+    "breed_select",
+    selected = c("Retrievers (Labrador)", "French Bulldogs")  # reset to defaults
+    # or use selected = character(0) to clear everything
+  )
+})
+```
+
+### **🐶 SELECTED BREED IMAGES 🐶** {data-width=45}
+
+```{r}
+
+renderUI({
+  req(input$breed_select)
+
+  # get the breeds currently selected
+  selected_breeds <- input$breed_select
+
+  # look up their images from breed_images
+  imgs <- breed_images %>%
+    dplyr::filter(Breed %in% selected_breeds)
+
+  # if no images found
+  if (nrow(imgs) == 0) {
+    return(tags$p("No images available yet for these breeds."))
+  }
+
+  # create a small image gallery
+  tagList(
+    lapply(seq_len(nrow(imgs)), function(i) {
+      tags$div(
+        style = "display: inline-block;
+                 margin: 8px;
+                 text-align: center;",
+        tags$img(
+          src   = imgs$ColorImageURL[i],
+          style = "max-width: 160px;
+                   height: auto;
+                   border-radius: 10px;
+                   box-shadow: 0 0 10px rgba(0,0,0,0.2);"
+        ),
+        tags$div(
+          imgs$Breed[i],
+          style = "margin-top: 4px; font-size: 0.8em; font-weight: 600;"
+        )
+      )
+    })
+  )
+})
+```
+
+
+**🐩 BREED TRAITS 🐕**
+=====================================
+
+Column {data-width=550 .sidebar}
 -----------------------------------------------------------------------
 
 ### **BREED TRAITS EXPLORER** 
@@ -297,7 +352,7 @@ style = "max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 0 10p
 
 ```
 
-## Column
+## Column {.tabset}
 
 ### **TRAITS SCORES FOR SELECTED BREED**
 
@@ -325,7 +380,7 @@ renderPlotly({
     scale_x_continuous(limits = c(0, 5), breaks = 0:5) +
     labs(
       x = "Score (1 = low, 5 = high)",
-      y = "Trait",
+      y = "Trait", 
       title = paste("Trait profile for", input$breed_traits_select)
     ) +
     theme_minimal() +
@@ -343,9 +398,12 @@ renderPlotly({
 # Show trait descriptions in an interactive table
 
 datatable(
-trait_desc_clean,
-options = list(pageLength = 5),
-caption = "What each trait means (1 vs 5 on the scale)."
+  trait_desc_clean,
+  options = list(
+    pageLength = 5,          # default rows shown
+    lengthMenu = c(5, 10, 14)  # dropdown options: 5, 10, or 14 traits
+  ),
+  caption = "What each trait means (1 vs 5 on the scale)."
 )
 
 ```
