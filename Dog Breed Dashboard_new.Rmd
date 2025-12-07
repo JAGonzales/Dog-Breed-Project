@@ -1,6 +1,6 @@
 ---
 title: "🐶 Dog Breeds Dashboard 🐶"
-author: "Jeffrey Gonzales, Morgan Hertel, Amy Gill"
+author: "Jeffrey Gonzales"
 output:
   flexdashboard::flex_dashboard:
     orientation: column
@@ -151,8 +151,6 @@ datatable(
 
 **📊 POPULARITY 📊**
 =====================================
-
-
 
 Column {data-width=340 .sidebar}
 -----------------------------------------------------------------------
@@ -363,6 +361,29 @@ renderUI({
   )
 })
 
+```
+
+
+```{r echo=FALSE}
+tags$div(
+  style = "
+    text-align: center;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  ",
+  tags$img(
+    src = "https://i.pinimg.com/1200x/57/78/c3/5778c3d047015bd9996fa884b53ea1a9.jpg",
+    style = "
+      max-width: 100%;
+      height: auto;
+      border-radius: 0;
+      box-shadow: none;
+      display: block;
+      margin: 0 auto;
+    "
+  )
+)
 ```
 
 
