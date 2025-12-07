@@ -1,0 +1,32 @@
+/* Make sure the page can show a full background image */
+h1, h2 {
+  color: red !important;
+}
+
+html, body {
+  height: 100%;
+}
+
+/* Background image for the whole page */
+body {
+  background-image: url("background.jpg");  /* ⬅️ change to your file name */
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: fixed;
+}
+
+/* Put a slightly transparent white panel behind the dashboard content
+   so text is still readable but the background image shows through */
+.main-container {
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+/* Make the individual flexdashboard panels transparent so they don't
+   add extra white boxes on top of the background */
+.section {
+  background-color: transparent;
+  box-shadow: none;
+}
