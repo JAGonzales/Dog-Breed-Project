@@ -163,7 +163,7 @@ inputPanel(
     inputId  = "breed_select",
     label    = "Please select breed(s) to compare:",
     choices  = sort(unique(rank_long$Breed)),
-    selected = c("Retrievers (Labrador)"),
+    selected = c("Retrievers (Labrador)", "French Bulldogs"),
     multiple = TRUE
   ),
   actionButton(
@@ -179,7 +179,7 @@ observeEvent(input$reset_breeds, {
   updateSelectInput(
     session,
     "breed_select",
-    selected = c("Retrievers (Labrador)")  # reset to defaults
+    selected = c("Retrievers (Labrador)", "French Bulldogs")  # reset to defaults
     # or use selected = character(0) to clear everything
   )
 })
