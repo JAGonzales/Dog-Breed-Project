@@ -152,9 +152,87 @@ datatable(
 **📊 POPULARITY 📊**
 =====================================
 
-Row {data-height=80}
+
+
+Column {data-width=350 .sidebar}
 -----------------------------------------------------------------------
-### **POPULARITY RANK TRENDS** {data-width=55}
+
+### **🐩  BREED SELECTION 🐾**
+
+```{r}
+inputPanel(
+  selectInput(
+    inputId  = "breed_select",
+    label    = "Select breed(s):",
+    choices  = sort(unique(rank_long$Breed)),
+    selected = c(0),
+    multiple = TRUE
+  ),
+  actionButton(
+    inputId = "reset_breeds",
+    label   = "Reset selection"
+  )
+)
+
+```
+
+```{r echo=FALSE}
+observeEvent(input$reset_breeds, {
+  updateSelectInput(
+    session,
+    "breed_select",
+    selected = c(0)  # reset to defaults
+    # or use selected = character(0) to clear everything
+  )
+})
+```
+
+### **🐶 SELECTED BREED 🐶**
+
+```{r}
+
+renderUI({
+  req(input$breed_select)
+
+  # get the breeds currently selected
+  selected_breeds <- input$breed_select
+
+  # look up their images from breed_images
+  imgs <- breed_images %>%
+    dplyr::filter(Breed %in% selected_breeds)
+
+  # if no images found
+  if (nrow(imgs) == 0) {
+    return(tags$p("No images available yet for these breeds."))
+  }
+
+  # create a small image gallery
+  tagList(
+    lapply(seq_len(nrow(imgs)), function(i) {
+      tags$div(
+        style = "display: inline-block;
+                 margin: 8px;
+                 text-align: center;",
+        tags$img(
+          src   = imgs$ColorImageURL[i],
+          style = "max-width: 160px;
+                   height: auto;
+                   border-radius: 10px;
+                   box-shadow: 0 0 10px rgba(0,0,0,0.2);"
+        ),
+        tags$div(
+          imgs$Breed[i],
+          style = "margin-top: 4px; font-size: 0.8em; font-weight: 600;"
+        )
+      )
+    })
+  )
+})
+```
+
+Column {data-width=65}
+-----------------------------------------------------------------------
+### **🐕 POPULARITY RANK TRENDS 📈**
 
 ```{r}
 
@@ -199,83 +277,6 @@ renderPlotly({
 
 
 ```
-
-Row {data-height=20}
------------------------------------------------------------------------
-
-### **🏆 POPULARITY OVER TIME 🏆** {data-width=45}
-
-```{r}
-inputPanel(
-  selectInput(
-    inputId  = "breed_select",
-    label    = "Select breed(s):",
-    choices  = sort(unique(rank_long$Breed)),
-    selected = c("Retrievers (Labrador)", "French Bulldogs"),
-    multiple = TRUE
-  ),
-  actionButton(
-    inputId = "reset_breeds",
-    label   = "Reset selection"
-  )
-)
-
-```
-
-```{r echo=FALSE}
-observeEvent(input$reset_breeds, {
-  updateSelectInput(
-    session,
-    "breed_select",
-    selected = c("Retrievers (Labrador)", "French Bulldogs")  # reset to defaults
-    # or use selected = character(0) to clear everything
-  )
-})
-```
-
-### **🐶 SELECTED BREED IMAGES 🐶** {data-width=45}
-
-```{r}
-
-renderUI({
-  req(input$breed_select)
-
-  # get the breeds currently selected
-  selected_breeds <- input$breed_select
-
-  # look up their images from breed_images
-  imgs <- breed_images %>%
-    dplyr::filter(Breed %in% selected_breeds)
-
-  # if no images found
-  if (nrow(imgs) == 0) {
-    return(tags$p("No images available yet for these breeds."))
-  }
-
-  # create a small image gallery
-  tagList(
-    lapply(seq_len(nrow(imgs)), function(i) {
-      tags$div(
-        style = "display: inline-block;
-                 margin: 8px;
-                 text-align: center;",
-        tags$img(
-          src   = imgs$ColorImageURL[i],
-          style = "max-width: 160px;
-                   height: auto;
-                   border-radius: 10px;
-                   box-shadow: 0 0 10px rgba(0,0,0,0.2);"
-        ),
-        tags$div(
-          imgs$Breed[i],
-          style = "margin-top: 4px; font-size: 0.8em; font-weight: 600;"
-        )
-      )
-    })
-  )
-})
-```
-
 
 **🐩 BREED TRAITS 🐕**
 =====================================
