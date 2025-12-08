@@ -73,8 +73,16 @@ total_breeds <- breed_traits %>%
   distinct(Breed) %>% 
   nrow()
 
+# Most popular breed in 2020 
 most_popular_2020 <- breed_rank %>%
   filter(`2020 Rank` == 1) %>%
+  pull(Breed)
+
+# Least popular breed in 2020 
+least_popular_2020 <- breed_rank %>%
+  filter(!is.na(`2020 Rank`)) %>%
+  arrange(desc(`2020 Rank`)) %>%  # highest rank = least popular
+  slice(1) %>%
   pull(Breed)
 
 # Calculate biggest rank improvement (rank going DOWN is better)
@@ -89,6 +97,19 @@ biggest_improvement <- breed_rank %>%
   arrange(desc(rank_change)) %>%
   slice(1) %>%
   pull(rank_change)
+
+# Calculate biggest rank decline (rank going UP = less popular)
+biggest_decliner <- breed_rank %>%
+  mutate(rank_drop = `2020 Rank` - `2013 Rank`) %>%  # positive = worse rank
+  arrange(desc(rank_drop)) %>%
+  slice(1) %>%
+  pull(Breed)
+
+biggest_rank_drop <- breed_rank %>%
+  mutate(rank_drop = `2020 Rank` - `2013 Rank`) %>%
+  arrange(desc(rank_drop)) %>%
+  slice(1) %>%
+  pull(rank_drop)
 
 # Correlation matrix for traits
 trait_cor <- breed_traits %>%
@@ -181,7 +202,7 @@ datatable(
 📊 SUMMARY
 =====================================
 
-Column {data-width=25}
+Column {data-width=20}
 -----------------------------------------------------------------------
 
 ### Total Breeds in Dataset
@@ -190,7 +211,7 @@ renderValueBox({
   valueBox(
     value = total_breeds,
     icon = "fa-dog",
-    color = "#8C5A3C"
+    color = "#8C5A3C",
   )
 })
 ```
@@ -206,6 +227,17 @@ renderValueBox({
 })
 ```
 
+### Least Popular Breed (2020)
+```{r}
+renderValueBox({
+  valueBox(
+    value = least_popular_2020,
+    icon  = "fa-dog",
+    color = "#A9A9A9"   # or any color you like
+  )
+})
+```
+
 ### Biggest Rank Improvement (2013-2020)
 ```{r}
 renderValueBox({
@@ -217,7 +249,21 @@ renderValueBox({
 })
 ```
 
-Column {data-width=37.5}
+### Biggest Rank Drop (2013-2020)
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste(biggest_decliner, "(-", biggest_rank_drop, "spots)"),
+    icon  = "fa-arrow-down",
+    color = "#B22222"
+  )
+})
+```
+
+
+
+
+Column {data-width=37.5 .tabset}
 -----------------------------------------------------------------------
 
 ### 📈 Average Trait Scores Across All Breeds
@@ -248,8 +294,6 @@ renderPlotly({
 })
 ```
 
-Column {data-width=37.5}
------------------------------------------------------------------------
 
 ### 📊 Distribution of Trait Scores
 ```{r}
@@ -652,7 +696,7 @@ datatable(
 **🔗 TRAIT CORRELATION**
 =====================================
 
-Column {data-width=60 .tabset}
+Column {data-width=55 .tabset}
 -----------------------------------------------------------------------
 
 ### 🌡️ Trait Correlation Heatmap
@@ -731,10 +775,10 @@ renderDT({
 })
 ```
 
-Column {data-width=40}
+Column {data-width=45}
 -----------------------------------------------------------------------
 
-### 🔍 Select Traits to Explore Correlation
+### 🔍 Select Traits to Explore Correlation {data-height=6}
 ```{r}
 fluidRow(
   column(
@@ -758,8 +802,7 @@ fluidRow(
 )
 ```
 
-
-🐶 BREED IMAGE ON HOVER
+### 🐶 Breed Image {data-height=45}
 ```{r}
 
 renderUI({
@@ -851,9 +894,7 @@ renderUI({
 
 ```
 
-
-### 📉 Scatterplot: Selected Traits
-
+### 📉 Scatterplot: Selected Traits {data-height=49}
 ```{r}
 renderPlotly({
   req(input$trait_x, input$trait_y)
