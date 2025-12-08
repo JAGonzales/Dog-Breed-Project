@@ -792,34 +792,8 @@ renderDT({
 Column {data-width=45}
 -----------------------------------------------------------------------
 
-### 🔍 Select Traits to Explore Correlation {data-height=6}
-```{r}
-fluidRow(
-  column(
-    width = 6,
-    selectInput(
-      inputId  = "trait_x",
-      label    = "Select X-axis trait:",
-      choices  = colnames(trait_cor),
-      selected = "Affectionate With Family"
-    )
-  ),
-  column(
-    width = 6,
-    selectInput(
-      inputId  = "trait_y",
-      label    = "Select Y-axis trait:",
-      choices  = colnames(trait_cor),
-      selected = "Good With Young Children"
-    )
-  )
-)
-```
-
-### 🐶 Breed Image {data-height=45}
-```{r}
-
-renderUI({
+```{r breed_image, server=TRUE}
+output$breed_image <- renderUI({
   # Hover event from this specific scatterplot
   d <- plotly::event_data("plotly_hover", source = "trait_scatter")
 
@@ -905,10 +879,47 @@ renderUI({
     )
   )
 })
+```
+
+
+### 🔍 Select Traits to Explore Correlation {data-height=55}
+```{r}
+fluidRow(
+  column(
+    width = 7,
+    tags$div(
+      
+    ),
+    selectInput(
+      inputId  = "trait_x",
+      label    = "Select X-axis trait:",
+      choices  = colnames(trait_cor),
+      selected = "Affectionate With Family"
+    ),
+    selectInput(
+      inputId  = "trait_y",
+      label    = "Select Y-axis trait:",
+      choices  = colnames(trait_cor),
+      selected = "Good With Young Children"
+    )
+  ),
+  column(
+    width = 5,
+    tags$div(
+      "🐶 Breed Image",
+      style = "
+        font-size: 1.0em;
+        font-weight: 600;
+        margin-bottom: 3px;
+      "
+    ),
+    uiOutput("breed_image")
+  )
+)
 
 ```
 
-### 📉 Scatterplot: Selected Traits {data-height=49}
+### 📉 Scatterplot: Selected Traits {data-height=45}
 ```{r}
 renderPlotly({
   req(input$trait_x, input$trait_y)
