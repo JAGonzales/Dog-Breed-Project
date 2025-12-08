@@ -734,7 +734,7 @@ renderDT({
 Column {data-width=40}
 -----------------------------------------------------------------------
 
-### 🔍 Select Traits to Explore Correlation {data-width=40}
+### 🔍 Select Traits to Explore Correlation
 ```{r}
 fluidRow(
   column(
@@ -761,6 +761,7 @@ fluidRow(
 
 🐶 BREED IMAGE ON HOVER
 ```{r}
+
 renderUI({
   # Hover event from this specific scatterplot
   d <- plotly::event_data("plotly_hover", source = "trait_scatter")
@@ -807,25 +808,42 @@ renderUI({
     )
   }
 
-  # Make image fill the pane nicely
+  # Image fills pane + name overlay at bottom center
   tags$div(
     style = "
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative;
       height: 100%;
       width: 100%;
-      text-align: center;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
     ",
     tags$img(
       src = img_url,
       style = "
         width: 100%;
         height: 100%;
-        object-fit: contain;   /* fit inside pane without cropping */
+        object-fit: contain;
         border-radius: 10px;
         box-shadow: 0 0 10px rgba(0,0,0,0.2);
         display: block;
+      ",
+      alt = breed_hovered
+    ),
+    tags$div(
+      breed_hovered,
+      style = "
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0,0,0,0.6);
+        color: #FFF;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.85em;
+        font-weight: 600;
+        white-space: nowrap;
       "
     )
   )
