@@ -205,13 +205,27 @@ datatable(
 Column {data-width=20}
 -----------------------------------------------------------------------
 
+```{r valuebox-css, echo = FALSE, results = "asis"}
+cat('
+<style>
+  /* Make value, caption, and icon text white in all valueBoxes */
+  .value-box .value,
+  .value-box .caption,
+  .value-box .icon {
+    color: #FFFFFF !important;
+  }
+</style>
+')
+```
+
+
 ### Total Breeds in Dataset
 ```{r}
 renderValueBox({
   valueBox(
     value = total_breeds,
     icon = "fa-dog",
-    color = "#8C5A3C",
+    color = "#5E3A24",
   )
 })
 ```
@@ -222,7 +236,7 @@ renderValueBox({
   valueBox(
     value = most_popular_2020,
     icon = "fa-trophy",
-    color = "#D4A574"
+    color = "#B66A2A"
   )
 })
 ```
@@ -232,8 +246,8 @@ renderValueBox({
 renderValueBox({
   valueBox(
     value = least_popular_2020,
-    icon  = "fa-dog",
-    color = "#A9A9A9"   # or any color you like
+    icon  = "fa-thumbs-down",
+    color = "#555B6E"   
   )
 })
 ```
@@ -244,7 +258,7 @@ renderValueBox({
   valueBox(
     value = paste(biggest_improver, "(+", biggest_improvement, "spots)"),
     icon = "fa-arrow-up",
-    color = "#6B8E23"
+    color = "#3F7D3C"
   )
 })
 ```
@@ -255,7 +269,7 @@ renderValueBox({
   valueBox(
     value = paste(biggest_decliner, "(-", biggest_rank_drop, "spots)"),
     icon  = "fa-arrow-down",
-    color = "#B22222"
+    color = "#9B2226"
   )
 })
 ```
@@ -263,7 +277,7 @@ renderValueBox({
 
 
 
-Column {data-width=37.5 .tabset}
+Column {data-width=40 .tabset}
 -----------------------------------------------------------------------
 
 ### 📈 Average Trait Scores Across All Breeds
