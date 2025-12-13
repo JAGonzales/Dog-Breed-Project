@@ -916,7 +916,7 @@ renderDT({
       "Correlation",
       backgroundColor = styleInterval(
         cuts = c(-0.5, 0, 0.5),
-        values = c("#2166AC", "#F7F7F7", "#F7F7F7", "#B2182B")
+        values = c("#2166AC", "#F7F7F7", "#F7F7F7", "#EE6363")
       )
     )
 })
@@ -1118,6 +1118,3 @@ renderPlotly({
 })
 
 ```
-
-
-
