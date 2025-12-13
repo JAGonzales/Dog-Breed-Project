@@ -255,7 +255,7 @@ cat('
 
   # Make all valueBoxes share equal height and fill the pane
   .shiny-valuebox .value-box {
-    height: 18vh;                 # 5 boxes ≈ full column height
+    height: 15vh;                 # 5 boxes ≈ full column height
     display: flex;
     flex-direction: column;
     justify-content: center;      # vertically center value + caption + icon
@@ -325,6 +325,29 @@ renderValueBox({
 })
 ```
 
+###
+```{r echo=FALSE}
+
+tags$div(
+  style = "
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+  ",
+  tags$img(
+    src = "https://images.rawpixel.com/image_social_landscape/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvczY5LXRlZDQyNDQtdG9uZy1qai1hZS1sLmpwZw.jpg",
+    style = "
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.15);
+      display: block;
+      margin: 0 auto;
+    "
+  )
+)
+
+```
 
 
 
@@ -792,10 +815,8 @@ renderPlotly({
 
 datatable(
   trait_desc_clean,
-  options = list(
-    pageLength = 5,          
-    lengthMenu = c(5, 10, 14) 
-  ),
+  colnames = c("Trait", "Score_1", "Score_5", "Description"),
+  options = list(pageLength = 5, lengthMenu = c(5, 10, 14)),
   caption = "What each trait means (1 vs 5 on the scale)."
 )
 
