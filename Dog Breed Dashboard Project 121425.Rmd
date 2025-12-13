@@ -1,0 +1,1120 @@
+---
+title: "🐶 Dog Breeds Dashboard"
+author: "Jeffrey Gonzales, Morgan Hertel, Amy Gill"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: column
+    vertical_layout: fill
+    theme:
+      version: 4
+      bootswatch: journal # some options: simplex, journal,cosmo
+      primary: "#8C5A3C"   # warm brown (like a leather collar)
+      bg: "#FFF7E6"        # light cream background
+      fg: "#4A2C2A"        # dark brown text
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# Load packages ------------------------------------------------------------
+library(flexdashboard)
+library(shiny)
+library(tidyverse)
+library(plotly)
+library(DT)
+library(viridis)
+library(stringr)
+
+# Read in data -------------------------------------------------------------
+
+breed_rank <- readr::read_csv("data/breed_rank.csv")
+breed_traits <- readr::read_csv("data/breed_traits.csv")
+trait_description <- readr::read_csv("data/trait_description.csv")
+
+# Clean breed names (fix weird non-breaking spaces) ------------------------
+
+breed_traits <- breed_traits %>%
+  mutate(Breed = str_replace_all(Breed, "\u00a0", " "))
+
+# Image lookup table from breed_rank.csv -----------------------------------
+
+breed_images <- breed_rank %>%
+  dplyr::select(Breed, ColorImageURL = Color_Image, ImageURL = Image)
+
+# Make long version of rank data: one row per breed–year -------------------
+
+rank_long <- breed_rank %>%
+  pivot_longer(
+    cols = ends_with("Rank"),      # all the 2013 Rank, 2014 Rank, ...
+    names_to = "Year",
+    values_to = "Rank"
+  ) %>%
+  mutate(
+    Year = readr::parse_number(Year)  # turn "2013 Rank" → 2013
+  )
+
+# Long version of traits: one row per breed–trait ---------------------------
+
+trait_long <- breed_traits %>%
+  pivot_longer(
+    cols = where(is.numeric),   # only the numeric trait columns
+    names_to = "Trait",
+    values_to = "Score"
+  )
+
+# Order traits by their mean score (low → high) and define a shared color palette
+
+trait_summary <- trait_long %>%
+  dplyr::group_by(Trait) %>%
+  dplyr::summarise(
+    avg_score = mean(Score, na.rm = TRUE),
+    .groups   = "drop"
+  ) %>%
+  dplyr::arrange(avg_score)
+
+trait_order <- trait_summary %>% dplyr::pull(Trait)
+
+# One color per trait using viridis (color blind-friendly)-------------------
+
+trait_pal <- viridis::viridis(length(trait_order), option = "H")
+names(trait_pal) <- trait_order
+
+# For trait descriptions, make a helper table to join later -----------------
+
+trait_desc_clean <- trait_description %>%
+  filter(Trait %in% unique(trait_long$Trait)) %>%  # keep only numeric traits
+  select(Trait, Trait_1, Trait_5, Description)
+
+# Summary statistics --------------------------------------------------------
+
+total_breeds <- breed_traits %>% 
+  distinct(Breed) %>% 
+  nrow()
+
+# Most popular breed in 2020 ------------------------------------------------ 
+
+most_popular_2020 <- breed_rank %>%
+  filter(`2020 Rank` == 1) %>%
+  pull(Breed)
+
+# Least popular breed in 2020 ----------------------------------------------- 
+
+least_popular_2020 <- breed_rank %>%
+  filter(!is.na(`2020 Rank`)) %>%
+  arrange(desc(`2020 Rank`)) %>%  # highest rank = least popular
+  slice(1) %>%
+  pull(Breed)
+
+# Calculate biggest rank improvement (rank going DOWN is better) ------------
+
+biggest_improver <- breed_rank %>%
+  mutate(rank_change = `2013 Rank` - `2020 Rank`) %>%
+  arrange(desc(rank_change)) %>%
+  slice(1) %>%
+  pull(Breed)
+
+biggest_improvement <- breed_rank %>%
+  mutate(rank_change = `2013 Rank` - `2020 Rank`) %>%
+  arrange(desc(rank_change)) %>%
+  slice(1) %>%
+  pull(rank_change)
+
+# Calculate biggest rank decline (rank going UP = less popular) --------------
+
+biggest_decliner <- breed_rank %>%
+  mutate(rank_drop = `2020 Rank` - `2013 Rank`) %>%  # positive = worse rank
+  arrange(desc(rank_drop)) %>%
+  slice(1) %>%
+  pull(Breed)
+
+biggest_rank_drop <- breed_rank %>%
+  mutate(rank_drop = `2020 Rank` - `2013 Rank`) %>%
+  arrange(desc(rank_drop)) %>%
+  slice(1) %>%
+  pull(rank_drop)
+
+# Correlation matrix for traits -----------------------------------------------
+
+trait_cor <- breed_traits %>%
+  select(where(is.numeric)) %>%
+  cor(use = "pairwise.complete.obs")
+
+```
+
+📝 OVERVIEW 
+=====================================
+
+Column {data-width=45}
+-----------------------------------------------------------------------
+### 
+```{r echo=FALSE}
+
+tags$div(
+  style = "
+    display: flex;
+    align-items: stretch;     # image stretch vertically
+    justify-content: stretch; # image stretch horizontally
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  ",
+  tags$img(
+    src = "https://i7.glitter-graphics.org/pub/540/540957x9slahm5jk.gif",
+    style = "
+      width: 100%;
+      height: 100%;
+      object-fit: cover;  #fill pane
+      border-radius: 0;
+      box-shadow: none;
+      display: block;
+    "
+  )
+)
+```
+
+### **🐾 ABOUT THIS DASHBOARD 🐾**
+
+This interactive flexdashboard uses American Kennel Club (AKC) data to explore dog breeds from different angles:
+
+- **Popularity over time (2013–2020)** using yearly AKC ranks (1 = most popular).  
+- **Behavior, care, and suitability traits** scored from 1 (low) to 5 (high).
+- **Trait definitions** to help interpret the 1–5 scores (1 = low, 5 = high).
+- **Relationships between traits**, such as which characteristics tend to go together.
+
+Across the tabs, you can:
+
+**📝 Overview:** Preview AKC popularity ranks (2013–2020) and how rank works (1 = most popular).
+
+**📊 Summary:** See key metrics (total breeds, most/least popular, biggest riser/faller) plus average trait scores and their distributions.
+
+**🏆 Popularity:** Compare popularity trends for selected breeds over time and view their images, including on hover.
+
+**🔍 Breed Traits Explorer:** Inspect a single breed’s trait profile (1–5 scores), with sketch, full-color photo, and trait definitions.
+
+**🔗 Trait Correlation:** Explore a trait correlation heatmap, top correlated trait pairs, and a scatterplot for any two traits with hoverable breed images.
+
+
+**Overall, this dashboard is designed to help you:**
+
+- Compare how popular different breeds have been over time.  
+- Understand each breed’s behavioral and care traits in detail.  
+- Discover patterns and relationships among traits across all breeds
+
+Column {data-width=55}
+-----------------------------------------------------------------------
+```{r}
+
+# Make a small data frame for the preview ------------------------------------
+
+df_preview <- breed_rank %>%
+  dplyr::select(
+    Breed,
+    `2013 Rank`, `2014 Rank`, `2015 Rank`, `2016 Rank`,
+    `2017 Rank`, `2018 Rank`, `2019 Rank`, `2020 Rank`
+  )
+
+datatable(
+  df_preview,
+  options = list(
+    pageLength = 10,
+    lengthMenu = c(10, 25, 50, 100, nrow(df_preview)),
+    scrollY = "70vh",               # taller scrolling region for rows
+    dom = "lfrtip"                  # keep length, filter, table, info, paging
+  ),
+  caption = "Sample of Dog Breeds with Popularity Rank (lower = more popular)."
+) %>%
+  DT::formatStyle(
+    columns = names(df_preview),
+    backgroundColor = "#FFF7E6",   # warm cream background
+    color           = "#4A2C2A"    # deep brown text
+  ) %>%
+  DT::formatStyle(
+    "Breed",
+    fontWeight = "bold"            
+  )
+
+```
+
+
+📊 SUMMARY
+=====================================
+
+Column {data-width=20}
+-----------------------------------------------------------------------
+
+```{r valuebox-css, echo = FALSE, results = "asis"}
+cat('
+<style>
+  # Make value, caption, and icon text white in all valueBoxes
+  .value-box .value,
+  .value-box .caption,
+  .value-box .icon {
+    color: #FFFFFF !important;
+  }
+
+  # Make all valueBoxes share equal height and fill the pane
+  .shiny-valuebox .value-box {
+    height: 15vh;                 # 5 boxes ≈ full column height
+    display: flex;
+    flex-direction: column;
+    justify-content: center;      # vertically center value + caption + icon
+  }
+
+  /* Optional: smaller gap between boxes */
+  .shiny-valuebox {
+    margin-bottom: 4px;
+  }
+</style>
+')
+```
+
+
+### Total Breeds in Dataset
+```{r}
+renderValueBox({
+  valueBox(
+    value = total_breeds,
+    icon = "fa-dog",
+    color = "#5E3A24",
+  )
+})
+```
+
+### Most Popular Breed (2020)
+```{r}
+renderValueBox({
+  valueBox(
+    value = most_popular_2020,
+    icon = "fa-trophy",
+    color = "#B66A2A"
+  )
+})
+```
+
+### Least Popular Breed (2020)
+```{r}
+renderValueBox({
+  valueBox(
+    value = least_popular_2020,
+    icon  = "fa-thumbs-down",
+    color = "#555B6E"   
+  )
+})
+```
+
+### Biggest Rank Improvement (2013-2020)
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste(biggest_improver, "(+", biggest_improvement, "spots)"),
+    icon = "fa-arrow-up",
+    color = "#3F7D3C"
+  )
+})
+```
+
+### Biggest Rank Drop (2013-2020)
+```{r}
+renderValueBox({
+  valueBox(
+    value = paste(biggest_decliner, "(-", biggest_rank_drop, "spots)"),
+    icon  = "fa-arrow-down",
+    color = "#9B2226"
+  )
+})
+```
+
+###
+```{r echo=FALSE}
+
+tags$div(
+  style = "
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+  ",
+  tags$img(
+    src = "https://images.rawpixel.com/image_social_landscape/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvczY5LXRlZDQyNDQtdG9uZy1qai1hZS1sLmpwZw.jpg",
+    style = "
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.15);
+      display: block;
+      margin: 0 auto;
+    "
+  )
+)
+
+```
+
+
+
+Column {data-width=80 .tabset}
+-----------------------------------------------------------------------
+
+### 📈 Average Trait Scores
+```{r}
+
+renderPlotly({
+  trait_avg <- trait_summary %>%
+    dplyr::mutate(Trait = factor(Trait, levels = trait_order))
+
+  p <- ggplot(trait_avg, aes(x = avg_score, y = Trait, fill = Trait)) +
+    geom_col() +
+    scale_fill_manual(values = trait_pal) +      # shared palette
+    scale_x_continuous(limits = c(0, 5), breaks = 0:5) +
+    labs(
+      x = "Average Score",
+      y = NULL,
+      title = "Average Trait Scores Across All Dog Breeds"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      plot.title      = element_text(
+        hjust = 0.5,   # center title
+        face  = "bold",
+        size = 12
+      ),
+       axis.text.y = element_text(
+        size = 11,      
+        face = "bold"
+      ),
+      axis.text.x = element_text(size = 11),
+      axis.title.x = element_text(size = 12, face = "bold")
+    )
+
+  ggplotly(p, tooltip = c("Trait", "avg_score"))
+})
+
+```
+
+
+### 📊 Trait Scores Distribution
+```{r}
+
+renderPlotly({
+  df <- trait_long %>%
+    dplyr::mutate(
+      # Reverse the global order so facets start with highest-score trait
+      Trait = factor(Trait, levels = rev(trait_order))
+    )
+
+  p <- ggplot(df, aes(x = Score, fill = Trait)) +
+    geom_histogram(
+      bins  = 5,
+      color = "#4A2C2A",
+      alpha = 0.7
+    ) +
+    facet_wrap(~ Trait, ncol = 3) +
+    scale_fill_manual(values = trait_pal) +      # same colors as avg plot
+    scale_x_continuous(breaks = 1:5) +
+    labs(
+      x = "Score",
+      y = "Number of Breeds",
+      title = "Distribution of Scores for Each Trait"
+    ) +
+    theme_minimal() +
+    theme(
+      strip.text      = element_text(size = 10, face = "bold"),
+      axis.text       = element_text(size = 10),
+      axis.title      = element_text(size = 12, face = "bold"),
+      legend.position = "none",
+      plot.title      = element_text(hjust = 0.5, face = "bold", size = 14) # center title
+    )
+
+  ggplotly(p)
+})
+
+```
+
+
+**🏆 POPULARITY**
+=====================================
+
+Column {data-width=340 .sidebar}
+-----------------------------------------------------------------------
+
+### **🐩  BREED SELECTION**
+
+```{r}
+inputPanel(
+  selectInput(
+    inputId  = "breed_select",
+    label    = "Please select breed(s) to compare:",
+    choices  = sort(unique(rank_long$Breed)),
+    selected = c("Retrievers (Labrador)", "French Bulldogs"),
+    multiple = TRUE
+  ),
+  actionButton(
+    inputId = "reset_breeds",
+    label   = "Reset selection"
+  )
+)
+
+```
+
+```{r echo=FALSE}
+observeEvent(input$reset_breeds, {
+  updateSelectInput(
+    session,
+    "breed_select",
+    selected = c("Retrievers (Labrador)", "French Bulldogs")  # reset to defaults
+    # or use selected = character(0) to clear everything
+  )
+})
+```
+
+### **🐶 SELECTED BREED**
+
+```{r}
+
+renderUI({
+  req(input$breed_select)
+
+  # get the breeds currently selected
+  selected_breeds <- input$breed_select
+
+  # look up their images from breed_images
+  imgs <- breed_images %>%
+    dplyr::filter(Breed %in% selected_breeds)
+
+  # if no images found
+  if (nrow(imgs) == 0) {
+    return(tags$p("No images available yet for these breeds."))
+  }
+
+  # create a small image gallery
+  tagList(
+    lapply(seq_len(nrow(imgs)), function(i) {
+      tags$div(
+        style = "display: inline-block;
+                 margin: 8px;
+                 text-align: center;",
+        tags$img(
+          src   = imgs$ColorImageURL[i],
+          style = "max-width: 160px;
+                   height: auto;
+                   border-radius: 10px;
+                   box-shadow: 0 0 10px rgba(0,0,0,0.2);"
+        ),
+        tags$div(
+          imgs$Breed[i],
+          style = "margin-top: 4px; font-size: 0.8em; font-weight: 600;"
+        )
+      )
+    })
+  )
+})
+```
+
+Column {data-width=55}
+-----------------------------------------------------------------------
+### **📈 POPULARITY RANK TRENDS**
+
+```{r}
+
+renderPlotly({
+req(input$breed_select)
+
+#Filter for selected breeds and join image info -------------------------------
+
+df <- rank_long %>%
+dplyr::filter(Breed %in% input$breed_select) %>%
+dplyr::left_join(breed_images, by = "Breed")
+
+if (nrow(df) == 0) {
+return(NULL)
+}
+
+#Determine an adaptive upper limit for the rank axis --------------------------
+
+max_rank_sel <- max(df$Rank, na.rm = TRUE)
+upper_limit <- max(20, max_rank_sel)
+
+#Choose nice breaks (every 5 ranks) -------------------------------------------
+
+breaks_y <- seq(1, upper_limit, by = 5)
+
+p <- ggplot(
+df,
+aes(
+x = Year,
+y = Rank,
+color = Breed,
+key = Breed # pass Breed as key for hover events
+)
+) +
+geom_line(linewidth = 1) +
+geom_point(size = 2) +
+scale_y_reverse(
+limits = c(upper_limit, 1),
+breaks = breaks_y
+) +
+labs(
+x = "Year",
+y = "AKC Popularity Rank (1 = most popular)",
+title = "Popularity Rank of Selected Dog Breeds Over Time",
+color = "Breed"
+) +
+theme_minimal() +
+    theme(
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      axis.text.x  = element_text(size = 10),
+      axis.text.y  = element_text(size = 10),
+      plot.title   = element_text(
+        hjust = 0.5,
+        face  = "bold",
+        size  = 14
+      )
+    )
+
+ggplotly(
+p,
+tooltip = c("Breed", "Year", "Rank"),
+source = "pop_plot" # give this plot a source ID
+)
+})
+```
+
+Column {data-width=45}
+-----------------------------------------------------------------------
+🐶 BREED IMAGE ON HOVER
+```{r}
+renderUI({
+  # Hover event from this specific plot
+  d <- plotly::event_data("plotly_hover", source = "pop_plot")
+
+  if (is.null(d) || nrow(d) == 0) {
+    return(
+      tags$div(
+        style = "
+          display: flex;
+          align-items: center;      /* vertical center */
+          justify-content: center;  /* horizontal center */
+          height: 100%;
+          width: 100%;
+          text-align: center;
+        ",
+        tags$p("Hover over a point in the popularity plot to see the breed image here.")
+      )
+    )
+  }
+
+  # Breed from 'key' we set in aes(key = Breed)
+  breed_hovered <- d$key[1]
+
+  img_url <- breed_images %>%
+    dplyr::filter(Breed == breed_hovered) %>%
+    dplyr::pull(ColorImageURL) %>%
+    .[1]
+
+  if (is.null(img_url) || is.na(img_url) || length(img_url) == 0) {
+    return(
+      tags$div(
+        style = "
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          width: 100%;
+          text-align: center;
+        ",
+        tags$p(paste("No image available yet for", breed_hovered))
+      )
+    )
+  }
+
+  tags$div(
+    style = "
+      display: flex;
+      align-items: center;      /* vertical center */
+      justify-content: center;  /* horizontal center */
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    ",
+    tags$div(
+      tags$h4(breed_hovered),
+      tags$img(
+        src   = img_url,
+        style = "
+          max-width: 100%;
+          height: auto;
+          border-radius: 10px;
+          box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        "
+      )
+    )
+  )
+})
+
+```
+
+```{r echo=FALSE}
+tags$div(
+  style = "
+    text-align: center;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  ",
+  tags$img(
+    src = "https://i.pinimg.com/1200x/57/78/c3/5778c3d047015bd9996fa884b53ea1a9.jpg",
+    style = "
+      max-width: 100%;
+      height: auto;
+      border-radius: 0;
+      box-shadow: none;
+      display: block;
+      margin: 0 auto;
+    "
+  )
+)
+```
+
+
+**🔍 BREED TRAITS EXPLORER **
+=====================================
+
+Column {data-width=550 .sidebar}
+-----------------------------------------------------------------------
+
+### **PLEASE SELECT DOG BREED** 
+
+```{r}
+
+# Separate dropdown for traits panel
+
+selectizeInput(
+  inputId = "breed_traits_select",
+  label   = "I want to have a:",
+  choices = sort(unique(trait_long$Breed)),
+  selected = "Retrievers (Labrador)",   # or NULL if you want no default
+  options = list(
+    placeholder = 'Type or select a breed...',
+    maxItems    = 1
+  )
+)
+
+```
+
+### **Sketch**
+
+```{r}
+
+# show sketch for the selected breed ------------------------------------------
+
+renderUI({
+req(input$breed_traits_select)
+
+# look up image URL from breed_images -----------------------------------------
+
+img_url <- breed_images %>%
+dplyr::filter(Breed == input$breed_traits_select) %>%
+dplyr::pull(ImageURL)
+
+if (length(img_url) == 0 || is.na(img_url)) {
+tags$p("No image available yet for this breed.")
+} else {
+tags$img(
+src = img_url,
+style = "max-width: 100%; 
+height: auto; 
+border-radius: 10px; 
+box-shadow: 0 0 10px rgba(0,0,0,0.2);"
+)
+}
+})
+
+```
+
+### **Actual Photo**
+
+```{r}
+
+# show colored image for the selected breed -----------------------------------
+
+renderUI({
+req(input$breed_traits_select)
+
+# look up image URL from breed_images -----------------------------------------
+
+img_url <- breed_images %>%
+dplyr::filter(Breed == input$breed_traits_select) %>%
+dplyr::pull(ColorImageURL)
+
+if (length(img_url) == 0 || is.na(img_url)) {
+tags$p("No image available yet for this breed.")
+} else {
+tags$img(
+src = img_url,
+style = "max-width: 100%; 
+height: auto; 
+border-radius: 10px; 
+box-shadow: 0 0 10px rgba(0,0,0,0.2);"
+)
+}
+})
+
+```
+
+## Column {.tabset}
+
+### **TRAITS SCORES FOR SELECTED BREED**
+
+```{r}
+
+renderPlotly({
+  req(input$breed_traits_select)
+
+  df <- trait_long %>%
+    dplyr::filter(Breed == input$breed_traits_select) %>%
+    dplyr::left_join(trait_desc_clean, by = c("Trait" = "Trait")) %>%
+    dplyr::mutate(
+      Trait = factor(Trait, levels = trait_order) 
+    ) %>%
+    dplyr::arrange(Trait)
+
+  p <- ggplot(df, aes(x = Score, y = Trait, fill = Trait)) +
+    geom_col() +
+    scale_fill_manual(values = trait_pal) +   # same palette as other plots
+    guides(fill = "none") +
+    scale_x_continuous(limits = c(0, 5), breaks = 0:5) +
+    labs(
+      x = "SCORE(1 = low, 5 = high)",
+      y = NULL, 
+      title = paste("Trait Profile for", input$breed_traits_select)
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      axis.text.y = element_text(size = 12, face = "bold"),
+      axis.text.x = element_text(size = 12, face = "bold"),
+      axis.title.x  = element_text(size = 12, face = "bold"),
+      plot.title  = element_text(
+        hjust = 0.5,
+        face  = "bold",
+        size  = 14
+      )
+    )
+
+  ggplotly(p, tooltip = c("Trait", "Score"))
+})
+
+```
+
+### **TRAITS EXPLANATION**
+
+```{r}
+
+# Show trait descriptions in an interactive table -----------------------------
+
+datatable(
+  trait_desc_clean,
+  colnames = c("Trait", "Score_1", "Score_5", "Description"),
+  options = list(pageLength = 5, lengthMenu = c(5, 10, 14)),
+  caption = "What each trait means (1 vs 5 on the scale)."
+)
+
+```
+
+
+**🔗 TRAIT CORRELATION**
+=====================================
+
+Column {data-width=55 .tabset}
+-----------------------------------------------------------------------
+
+### 🌡️ Trait Correlation Heatmap
+```{r}
+
+renderPlotly({
+  # Convert correlation matrix to long format for ggplot ----------------------
+  trait_cor_long <- trait_cor %>%
+    as.data.frame() %>%
+    rownames_to_column("Trait1") %>%
+    pivot_longer(
+      cols = -Trait1,
+      names_to = "Trait2",
+      values_to = "Correlation"
+    )
+  
+  p <- ggplot(trait_cor_long, aes(x = Trait1, y = Trait2, fill = Correlation)) +
+    geom_tile(color = "white") +
+    scale_fill_gradient2(
+      low = "#2166AC",
+      mid = "white",
+      high = "#B2182B",
+      midpoint = 0,
+      limits = c(-1, 1),
+      name = "Correlation"
+    ) +
+    labs(
+      x = "",
+      y = "",
+      title = "Correlation Between Dog Breed Traits"
+    ) +
+    theme_minimal() +
+   theme(
+      axis.text.x = element_text(
+        angle = 45,
+        hjust = 1,
+        size  = 12,
+        face  = "bold"
+      ),
+      axis.text.y = element_text(
+        hjust = 1,
+        size = 12,
+        face = "bold"
+      ),
+      panel.grid = element_blank(),
+      # title – centered, bold, larger
+      plot.title = element_text(
+        hjust = 0.5,
+        face  = "bold",
+        size  = 14
+      )
+    )
+  
+  ggplotly(p, tooltip = c("Trait1", "Trait2", "Correlation"))
+})
+
+```
+
+### 📋 Strongest Correlations
+```{r}
+
+renderDT({
+  trait_cor_long <- trait_cor %>%
+    as.data.frame() %>%
+    rownames_to_column("Trait1") %>%
+    pivot_longer(
+      cols = -Trait1,
+      names_to = "Trait2",
+      values_to = "Correlation"
+    ) %>%
+    filter(Trait1 != Trait2) %>%  
+    mutate(pair = paste(pmin(Trait1, Trait2), pmax(Trait1, Trait2), sep = " - ")) %>%
+    distinct(pair, .keep_all = TRUE) %>%
+    select(Trait1, Trait2, Correlation) %>%
+    arrange(desc(abs(Correlation))) %>%
+    head(10)
+  
+  datatable(
+    trait_cor_long,
+    options = list(
+      pageLength = 10,
+      dom = 't'  
+    ),
+    caption = "Top 10 strongest correlations between traits (positive or negative)"
+  ) %>%
+    formatRound("Correlation", 3) %>%
+    formatStyle(
+      "Correlation",
+      backgroundColor = styleInterval(
+        cuts = c(-0.5, 0, 0.5),
+        values = c("#2166AC", "#F7F7F7", "#F7F7F7", "#EE6363")
+      )
+    )
+})
+```
+
+Column {data-width=45}
+-----------------------------------------------------------------------
+
+```{r breed_image, server=TRUE}
+
+output$breed_image <- renderUI({
+  # Hover event from this specific scatterplot --------------------------------
+  d <- plotly::event_data("plotly_hover", source = "trait_scatter")
+
+  # If nothing is hovered yet -------------------------------------------------
+  if (is.null(d) || nrow(d) == 0) {
+    return(
+      tags$div(
+        style = "
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          width: 100%;
+          text-align: center;
+        ",
+        tags$p("Hover over a point in the scatterplot to see the breed image here.")
+      )
+    )
+  }
+
+  # Breed name from 'key' we set in aes(key = Breed) --------------------------
+  breed_hovered <- d$key[1]
+
+  # Look up image URL for this breed
+  img_url <- breed_images %>%
+    dplyr::filter(Breed == breed_hovered) %>%
+    dplyr::pull(ColorImageURL) %>%
+    .[1]
+
+  if (is.null(img_url) || is.na(img_url) || length(img_url) == 0) {
+    return(
+      tags$div(
+        style = "
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          width: 100%;
+          text-align: center;
+        ",
+        tags$p(paste("No image available yet for", breed_hovered))
+      )
+    )
+  }
+
+  # Image with name centered just below it ------------------------------------
+  tags$div(
+    style = "
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 100%;
+      padding: 0;
+      margin: 0;
+    ",
+    tags$img(
+      src = img_url,
+      style = "
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        display: block;
+      ",
+      alt = breed_hovered
+    ),
+    tags$div(
+      breed_hovered,
+      style = "
+        margin-top: 6px;
+        font-size: 0.9em;
+        font-weight: 600;
+        text-align: center;
+      "
+    )
+  )
+})
+```
+
+
+### 🔍 Select Traits to Explore Correlation {data-height=40}
+```{r}
+
+fluidRow(
+  column(
+    width = 7,
+    tags$div(
+      
+    ),
+    selectInput(
+      inputId  = "trait_x",
+      label    = "Select X-axis trait:",
+      choices  = colnames(trait_cor),
+      selected = "Affectionate With Family"
+    ),
+    selectInput(
+      inputId  = "trait_y",
+      label    = "Select Y-axis trait:",
+      choices  = colnames(trait_cor),
+      selected = "Good With Young Children"
+    )
+  ),
+  column(
+    width = 5,
+    tags$div(
+      "🐶 Breed Image",
+      style = "
+        font-size: 1.0em;
+        font-weight: 600;
+        margin-bottom: 3px;
+      "
+    ),
+    uiOutput("breed_image")
+  )
+)
+
+```
+
+### 📉 Scatterplot: Selected Traits {data-height=60}
+```{r}
+
+renderPlotly({
+  req(input$trait_x, input$trait_y)
+  
+  df <- breed_traits %>%
+    dplyr::select(
+      Breed, 
+      x_trait = dplyr::all_of(input$trait_x), 
+      y_trait = dplyr::all_of(input$trait_y)
+    )
+  
+  # Calculate correlation for these two traits --------------------------------
+  cor_value <- cor(df$x_trait, df$y_trait, use = "complete.obs")
+  
+  p <- ggplot(
+    df,
+    aes(
+      x    = x_trait,
+      y    = y_trait,
+      text = Breed,   # used in tooltip
+      key  = Breed    # used for hover image lookup
+    )
+  ) +
+    geom_jitter(
+      width  = 0.1,
+      height = 0.1,
+      alpha  = 0.6,
+      color  = "#8C5A3C",
+      size   = 2
+    ) +
+    geom_smooth(
+      method = "lm",
+      se     = TRUE,
+      color  = "#D4A574",
+      fill   = "#D4A574",
+      alpha  = 0.2
+    ) +
+    scale_x_continuous(breaks = 1:5) +
+    scale_y_continuous(breaks = 1:5) +
+    labs(
+      x     = input$trait_x,
+      y     = input$trait_y,
+      title = paste0("Correlation: ", round(cor_value, 3))
+    ) +
+    theme_minimal() +
+    theme(
+      axis.title.x = element_text(size = 12, face = "bold"),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      axis.text.x  = element_text(size = 10),
+      axis.text.y  = element_text(size = 10),
+      plot.title   = element_text(
+        hjust = 0.5,   # center
+        face  = "bold",
+        size  = 14
+      )
+    )
+  
+  ggplotly(
+    p,
+    tooltip = c("text", "x", "y"),
+    source  = "trait_scatter"   # match the source used in event_data()
+  )
+})
+
+```
