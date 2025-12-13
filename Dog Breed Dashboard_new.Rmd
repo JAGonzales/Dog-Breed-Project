@@ -219,7 +219,6 @@ datatable(
     pageLength = 10,
     lengthMenu = c(10, 25, 50, 100, nrow(df_preview)),
     scrollY = "70vh",               # taller scrolling region for rows
-    scrollCollapse = TRUE,          # collapse if fewer rows
     dom = "lfrtip"                  # keep length, filter, table, info, paging
   ),
   caption = "Sample of Dog Breeds with Popularity Rank (lower = more popular)."
